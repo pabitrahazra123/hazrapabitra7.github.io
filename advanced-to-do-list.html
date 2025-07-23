@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>To-Do List</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f0f4f8;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      max-width: 500px;
+      margin: auto;
+      background: #ffffff;
+      padding: 20px;
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    }
+    h2 {
+      text-align: center;
+      color: #333;
+    }
+    .task-input {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .task-input input {
+      flex: 1;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 16px;
+    }
+    .task-input button {
+      padding: 10px 20px;
+      background: #4caf50;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+    li {
+      background: #f9f9f9;
+      margin-bottom: 10px;
+      padding: 12px;
+      border-radius: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: grab;
+      transition: background 0.3s;
+    }
+    li.dragging {
+      opacity: 0.5;
+    }
+    .done {
+      background: #d4edda;
+      text-decoration: line-through;
+    }
+    .btn-group button {
+      margin-left: 5px;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .btn-done {
+      background: #28a745;
+      color: white;
+    }
+    .btn-edit {
+      background: #ffc107;
+      color: white;
+    }
+    .btn-remove {
+      background: #dc3545;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>📝 My To-Do List</h2>
+    <div class="task-input">
+      <input type="text" id="taskInput" placeholder="Enter your task" />
+      <button onclick="addTask()">Add</button>
+    </div>
+    <ul id="taskList"></ul>
+  </div>
+
+  <script>
+    const taskList = document.getElementById("taskList");
+    const taskInput = document.getElementById("taskInput");
+
+    let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
+
+    function saveTasks() {
+      localStorage.setItem("tasks", JSON.stringify(tasks));
+    }
+
+    function renderTasks() {
+      taskList.innerHTML = "";
+      tasks.forEach((task, index) => {
+        const li = document.createElement("li");
+        li.draggable = true;
+        if (task.done) li.classList.add("done");
+
+        li.innerHTML = `
+          <span contenteditable="false">${task.text}</span>
+          <div class="btn-group">
+            <button class="btn-done" onclick="toggleDone(${index})">✓</button>
+            <button class="btn-edit" onclick="editTask(${index}, this)">✎</button>
+            <button class="btn-remove" onclick="removeTask(${index})">🗑️</button>
+          </div>
+        `;
+
+        // Drag events
+        li.addEventListener("dragstart", () => {
+          li.classList.add("dragging");
+          li.setAttribute("data-index", index);
+        });
+
+        li.addEventListener("dragend", () => {
+          li.classList.remove("dragging");
+        });
+
+        taskList.appendChild(li);
+      });
+    }
+
+    function addTask() {
+      const text = taskInput.value.trim();
+      if (text === "") return;
+      tasks.push({ text, done: false });
+      saveTasks();
+      renderTasks();
+      taskInput.value = "";
+    }
+
+    function toggleDone(index) {
+      tasks[index].done = !tasks[index].done;
+      saveTasks();
+      renderTasks();
+    }
+
+    function removeTask(index) {
+      tasks.splice(index, 1);
+      saveTasks();
+      renderTasks();
+    }
+
+    function editTask(index, btn) {
+      const li = btn.closest("li");
+      const span = li.querySelector("span");
+      if (span.isContentEditable) {
+        span.contentEditable = false;
+        tasks[index].text = span.textContent.trim();
+        saveTasks();
+      } else {
+        span.contentEditable = true;
+        span.focus();
+      }
+    }
+
+    // Drag-and-drop logic
+    taskList.addEventListener("dragover", e => {
+      e.preventDefault();
+      const dragging = document.querySelector(".dragging");
+      const afterElement = getDragAfterElement(taskList, e.clientY);
+      if (afterElement == null) {
+        taskList.appendChild(dragging);
+      } else {
+        taskList.insertBefore(dragging, afterElement);
+      }
+    });
+
+    taskList.addEventListener("drop", () => {
+      const newTasks = [];
+      document.querySelectorAll("#taskList li").forEach(li => {
+        const index = parseInt(li.getAttribute("data-index"));
+        newTasks.push(tasks[index]);
+      });
+      tasks = newTasks;
+      saveTasks();
+      renderTasks();
+    });
+
+    function getDragAfterElement(container, y) {
+      const draggableElements = [...container.querySelectorAll("li:not(.dragging)")];
+
+      return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        if (offset < 0 && offset > closest.offset) {
+          return { offset, element: child };
+        } else {
+          return closest;
+        }
+      }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+
+    renderTasks();
+  </script>
+</body>
+</html>
